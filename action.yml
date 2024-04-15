@@ -1,0 +1,41 @@
+name: "Setup uv"
+description: "Setup python, venv and install dependencies using uv"
+
+inputs:
+  path:
+    description: path to requirements.txt
+    required: false
+  python-version:
+    description: python version
+    required: true
+  uv-version:
+    description: uv version
+    required: true
+
+runs:
+  using: "composite"
+  steps:
+    - uses: actions/setup-python@v5
+      with:
+        python-version: ${{ inputs.python-version }}
+    - name: Setup uv cache
+      if: ${{ inputs.path }}
+      uses: actions/cache@v4
+      id: cache
+      with:
+        path: '~/.cache/uv'
+        key: uv-${{ env.pythonLocation }}-${{ hashFiles(inputs.path) }}
+        restore-keys: |
+          uv-${{ env.pythonLocation }}-${{ hashFiles(inputs.path) }}
+          uv-${{ env.pythonLocation }}-
+    - name: Setup venv
+      shell: bash
+      run: |
+        curl --proto '=https' --tlsv1.2 -LsSf https://github.com/astral-sh/uv/releases/download/${{ inputs.uv-version }}/uv-installer.sh | sh
+        uv venv .venv
+        echo "VIRTUAL_ENV=.venv" >> $GITHUB_ENV
+        echo "$PWD/.venv/bin" >> $GITHUB_PATH
+    - name: Install dependencies
+      if: ${{ inputs.path }}
+      shell: bash
+      run: uv pip sync ${{ inputs.path }}
